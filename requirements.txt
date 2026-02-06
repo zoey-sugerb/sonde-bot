@@ -1,0 +1,4 @@
+sondehub
+geopy
+routingpy
+configparser
