@@ -19,8 +19,9 @@ addr = config['Location']['Address']
 homeLoc = locator.geocode(addr)
 
 # Tracking parameters
-checkInterval = 600
-sondeTimeout = 1800
+checkTimeout = int(config['Search']['checkTimeout'])
+removeTimeout = int(config['Search']['removeTimeout'])
+maxDist = int(config['Search']['maxDist'])
 
 # Initialize list of sondes
 trackedSondes = {}
@@ -41,11 +42,15 @@ stream = sondehub.Stream(on_message=sondeCheck)
 while True:
     serials = trackedSondes.copy().keys()
     for sonde in serials:
-        if time() - trackedSondes[sonde]['lastSeen'] >= sondeTimeout:
+        if time() - trackedSondes[sonde]['lastSeen'] >= removeTimeout:
             trackedSondes.pop(sonde)
-        elif time() - trackedSondes[sonde]['lastChecked'] >= checkInterval:
+            print(f"Removing {trackedSondes[sonde]['subtype']} {sonde}, as it has not been seen in over {round(removeTimeout/60)} minutes")
+        elif time() - trackedSondes[sonde]['lastChecked'] >= checkTimeout:
             trackedSondes[sonde]['lastChecked'] = time()
             sondeLoc = locator.reverse([trackedSondes[sonde]['lat'], trackedSondes[sonde]['lon']])
             dist = distance(homeLoc.point, [trackedSondes[sonde]['lat'], trackedSondes[sonde]['lon']]).miles
-            dirs = router.directions([homeLoc.point[1::-1], sondeLoc.point[1::-1]])
-            print(f"Sonde {sonde} is a {round(dirs.duration/60)} minute drive ({round(dist)} miles) away near {', '.join(sondeLoc.address.split(', ')[-3:])}")
+            if dist < maxDist:
+                dirs = router.directions([homeLoc.point[1::-1], sondeLoc.point[1::-1]])
+                print(f"{trackedSondes[sonde]['subtype']} {sonde} is a {round(dirs.duration/60)} minute drive ({round(dist)} miles) away near {', '.join(sondeLoc.address.split(', ')[-3:])}")
+            else:
+                print(f"{trackedSondes[sonde]['subtype']} {sonde} is {round(dist)} miles away near {', '.join(sondeLoc.address.split(', ')[-3:])}, which is more than the maximum radius of {maxDist} miles")
